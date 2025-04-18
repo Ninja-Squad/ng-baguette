@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
-import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { BehaviorSubject, of, Subject } from 'rxjs';
+import { provideRouter, Router } from '@angular/router';
+import { of, Subject } from 'rxjs';
 import { PoniesComponent } from './ponies.component';
 import { PonyService } from '../pony.service';
 import { Pony } from '../pony.model';
@@ -9,15 +9,10 @@ import { PonyComponent } from '../pony/pony.component';
 import { By } from '@angular/platform-browser';
 import { PonySearchFormComponent } from '../pony-search-form/pony-search-form.component';
 import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { RouterTestingHarness } from '@angular/router/testing';
 
 describe('PoniesComponent', () => {
   let ponyService: jasmine.SpyObj<PonyService>;
-  let routeStub = {
-    snapshot: {
-      queryParamMap: convertToParamMap({}),
-    },
-    queryParamMap: new BehaviorSubject(convertToParamMap({}))
-  };
 
   beforeEach(() => {
     ponyService = jasmine.createSpyObj<PonyService>('PonyService', ['search', 'delete']);
@@ -25,19 +20,20 @@ describe('PoniesComponent', () => {
     TestBed.configureTestingModule({
       providers: [
         provideExperimentalZonelessChangeDetection(),
-        { provide: ActivatedRoute, useValue: routeStub },
+        provideRouter([
+          { path: 'ponies', component: PoniesComponent }
+        ]),
         { provide: PonyService, useValue: ponyService }
       ]
     });
   });
 
   it('should search for ponies when submitting the form', async () => {
-    // clear the route stub query params
-    routeStub.snapshot.queryParamMap = convertToParamMap({});
-    routeStub.queryParamMap = new BehaviorSubject(convertToParamMap({}));
+    // navigate to the component
+    const harness = await RouterTestingHarness.create('/ponies');
 
     // create the ponies component
-    const fixture = TestBed.createComponent(PoniesComponent);
+    const fixture = harness.fixture;
     await fixture.whenStable();
 
     // check that the query input field is present and empty
@@ -49,20 +45,19 @@ describe('PoniesComponent', () => {
     expect(ponyComponents.length).toBe(0);
 
     // fill the form and search
+    const ponies = new Subject<ReadonlyArray<Pony>>();
+    ponyService.search.and.returnValue(ponies);
+
     const searchForm = fixture.debugElement.query(By.directive(PonySearchFormComponent)).componentInstance as PonySearchFormComponent;
-    const router = TestBed.inject(Router);
-    spyOn(router, 'navigate');
     searchForm.form.controls.query.setValue('b');
     searchForm.search();
 
-    // check that a navigation happened
-    expect(router.navigate).toHaveBeenCalledWith([], { queryParams: { query: 'b' }});
+    // wait until the navigation hs been done
+    await fixture.whenStable();
 
-    // change the query parameters of the stub route as the router would do,
-    // which should trigger a service call
-    const ponies = new Subject<ReadonlyArray<Pony>>();
-    ponyService.search.and.returnValue(ponies);
-    routeStub.queryParamMap.next(convertToParamMap({ query: 'b' }));
+    // check that a navigation happened
+    const router = TestBed.inject(Router);
+    expect(router.url).toBe('/ponies?query=b');
 
     // check that the service was called
     expect(ponyService.search).toHaveBeenCalledWith('b');
@@ -79,17 +74,13 @@ describe('PoniesComponent', () => {
   });
 
   it('should pre-fill the form and search immediately if the URL contains a query', async () => {
-    // fill the route stub with the query param
-    routeStub.snapshot.queryParamMap = convertToParamMap({ query: 'b' });
-    routeStub.queryParamMap = new BehaviorSubject(convertToParamMap({ query: 'b' }));
-
     // tell the service what to return
     const ponies = new Subject<ReadonlyArray<Pony>>();
     ponyService.search.and.returnValue(ponies);
 
-    // create the ponies component
-    const fixture = TestBed.createComponent(PoniesComponent);
-    await fixture.whenStable();
+    // navigate to the component
+    const harness = await RouterTestingHarness.create('/ponies?query=b');
+    const fixture = harness.fixture;
 
     // check that the query input field is present and pre-filled
     const queryInput: HTMLInputElement = fixture.debugElement.query(By.css('#query')).nativeElement;
@@ -110,17 +101,13 @@ describe('PoniesComponent', () => {
   });
 
   it('should delete a pony', async () => {
-    // fill the route stub with the query params
-    routeStub.snapshot.queryParamMap = convertToParamMap({ query: '' });
-    routeStub.queryParamMap = new BehaviorSubject(convertToParamMap({ query: '' }));
-
     // tell the service what to return
     let ponies = new Subject<ReadonlyArray<Pony>>();
     ponyService.search.and.returnValue(ponies);
 
-    // create the ponies component
-    const fixture = TestBed.createComponent(PoniesComponent);
-    await fixture.whenStable();
+    // navigate to the component
+    const harness = await RouterTestingHarness.create('/ponies?query=b');
+    const fixture = harness.fixture;
 
     // simulate the response from the server
     ponies.next([
