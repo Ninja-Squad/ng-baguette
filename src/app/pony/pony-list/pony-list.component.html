@@ -1,0 +1,12 @@
+@if (ponies) {
+  @for (pony of ponies; track pony.id) {
+    <div class="row align-items-center item">
+      <div class="col">
+        <app-pony [pony]="pony" />
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-danger btn-lg" (click)="delete(pony)">Delete</button>
+      </div>
+    </div>
+  }
+}
