@@ -31,14 +31,14 @@ describe('PoniesComponent', () => {
     });
   });
 
-  it('should search for ponies when submitting the form', () => {
+  it('should search for ponies when submitting the form', async () => {
     // clear the route stub query params
     routeStub.snapshot.queryParamMap = convertToParamMap({});
     routeStub.queryParamMap = new BehaviorSubject(convertToParamMap({}));
 
     // create the ponies component
     const fixture = TestBed.createComponent(PoniesComponent);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     // check that the query input field is present and empty
     const queryInput: HTMLInputElement = fixture.debugElement.query(By.css('#query')).nativeElement;
@@ -70,15 +70,15 @@ describe('PoniesComponent', () => {
     // simulate the response from the server
     ponies.next([{ id: 'p1', name: 'Blue mystery', color: 'blue' }]);
 
-    // detect changes to update the DOM
-    fixture.detectChanges();
+    // wait until changes have been synced to the DOM
+    await fixture.whenStable();
 
     // check that the returned pony is displayed
     ponyComponents = fixture.debugElement.queryAll(By.directive(PonyComponent));
     expect(ponyComponents.length).toBe(1);
   });
 
-  it('should pre-fill the form and search immediately if the URL contains a query', () => {
+  it('should pre-fill the form and search immediately if the URL contains a query', async () => {
     // fill the route stub with the query param
     routeStub.snapshot.queryParamMap = convertToParamMap({ query: 'b' });
     routeStub.queryParamMap = new BehaviorSubject(convertToParamMap({ query: 'b' }));
@@ -89,7 +89,7 @@ describe('PoniesComponent', () => {
 
     // create the ponies component
     const fixture = TestBed.createComponent(PoniesComponent);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     // check that the query input field is present and pre-filled
     const queryInput: HTMLInputElement = fixture.debugElement.query(By.css('#query')).nativeElement;
@@ -101,15 +101,15 @@ describe('PoniesComponent', () => {
     // simulate the response from the server
     ponies.next([{ id: 'p1', name: 'Blue mystery', color: 'blue' }]);
 
-    // detect changes to update the DOM
-    fixture.detectChanges();
+    // wait until changes have been synced to the DOM
+    await fixture.whenStable();
 
     // check that the pony is displayed
     let ponyComponents = fixture.debugElement.queryAll(By.directive(PonyComponent));
     expect(ponyComponents.length).toBe(1);
   });
 
-  it('should delete a pony', () => {
+  it('should delete a pony', async () => {
     // fill the route stub with the query params
     routeStub.snapshot.queryParamMap = convertToParamMap({ query: '' });
     routeStub.queryParamMap = new BehaviorSubject(convertToParamMap({ query: '' }));
@@ -120,7 +120,7 @@ describe('PoniesComponent', () => {
 
     // create the ponies component
     const fixture = TestBed.createComponent(PoniesComponent);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     // simulate the response from the server
     ponies.next([
@@ -128,8 +128,8 @@ describe('PoniesComponent', () => {
       { id: 'p2', name: 'Purple rain', color: 'purple' }
     ]);
 
-    // detect changes to update the DOM
-    fixture.detectChanges();
+    // wait until changes have been synced to the DOM
+    await fixture.whenStable();
 
     // check that the ponies are displayed
     let ponyComponents = fixture.debugElement.queryAll(By.directive(PonyComponent));
@@ -149,8 +149,8 @@ describe('PoniesComponent', () => {
       { id: 'p2', name: 'Purple rain', color: 'purple' }
     ]);
 
-    // detect changes to update the DOM
-    fixture.detectChanges();
+    // wait until changes have been synced to the DOM
+    await fixture.whenStable();
 
     // check that the remaining pony is displayed
     ponyComponents = fixture.debugElement.queryAll(By.directive(PonyComponent));

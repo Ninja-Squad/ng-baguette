@@ -1,4 +1,4 @@
-@if (ponies) {
+@if (ponies(); as ponies) {
   @for (pony of ponies; track pony.id) {
     <div class="row align-items-center item">
       <div class="col">

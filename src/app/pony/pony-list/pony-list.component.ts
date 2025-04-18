@@ -1,9 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, Signal } from '@angular/core';
 import { Pony } from '../pony.model';
 import { ActivatedRoute } from '@angular/router';
 import { catchError, EMPTY, exhaustMap, map, of, startWith, Subject, switchMap } from 'rxjs';
 import { PonyService } from '../pony.service';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { PonyComponent } from '../pony/pony.component';
 
 @Component({
@@ -19,11 +19,11 @@ export class PonyListComponent {
   private readonly deletionTrigger = new Subject<Pony>();
   private readonly refreshTrigger = new Subject<void>();
 
-  ponies: ReadonlyArray<Pony> | undefined;
+  ponies: Signal<ReadonlyArray<Pony> | undefined>;
 
   constructor() {
     const route = inject(ActivatedRoute);
-    route.queryParamMap.pipe(
+    this.ponies = toSignal(route.queryParamMap.pipe(
       map(params => params.get('query')),
       switchMap(query => this.refreshTrigger.pipe(
         startWith(undefined),
@@ -35,9 +35,8 @@ export class PonyListComponent {
         } else {
           return of(undefined)
         }
-      }),
-      takeUntilDestroyed()
-    ).subscribe(ponies => this.ponies = ponies);
+      })
+    ));
 
     this.deletionTrigger.pipe(
       exhaustMap(pony => this.ponyService.delete(pony.id).pipe(catchError(() => EMPTY))),
