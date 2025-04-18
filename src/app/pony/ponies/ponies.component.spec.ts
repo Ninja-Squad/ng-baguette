@@ -1,21 +1,48 @@
 import { TestBed } from '@angular/core/testing';
 
-import { provideRouter, Router } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { PoniesComponent } from './ponies.component';
 import { PonyService } from '../pony.service';
 import { Pony } from '../pony.model';
 import { PonyComponent } from '../pony/pony.component';
-import { By } from '@angular/platform-browser';
-import { PonySearchFormComponent } from '../pony-search-form/pony-search-form.component';
 import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { createMock, RoutingTester, speculoosMatchers, TestHtmlElement } from 'ngx-speculoos';
+
+class TestPonyItem extends TestHtmlElement<HTMLElement> {
+  get pony() {
+    return this.element(PonyComponent)
+  }
+
+  get deleteButton() {
+    return this.button('[data-test-delete-button]')!;
+  }
+}
+
+class PoniesComponentTester extends RoutingTester {
+  get queryInput() {
+    return this.input('#query')!;
+  }
+
+  get searchButton() {
+    return this.button('[data-test-search-button]')!;
+  }
+
+  get ponies() {
+    return this.customs('[data-test-pony-item]', TestPonyItem);
+  }
+}
 
 describe('PoniesComponent', () => {
   let ponyService: jasmine.SpyObj<PonyService>;
 
+  beforeAll(() => {
+    jasmine.addMatchers(speculoosMatchers);
+  });
+
   beforeEach(() => {
-    ponyService = jasmine.createSpyObj<PonyService>('PonyService', ['search', 'delete']);
+    ponyService = createMock(PonyService);
 
     TestBed.configureTestingModule({
       providers: [
@@ -30,34 +57,23 @@ describe('PoniesComponent', () => {
 
   it('should search for ponies when submitting the form', async () => {
     // navigate to the component
-    const harness = await RouterTestingHarness.create('/ponies');
-
-    // create the ponies component
-    const fixture = harness.fixture;
-    await fixture.whenStable();
+    const tester = new PoniesComponentTester(await RouterTestingHarness.create('/ponies'));
 
     // check that the query input field is present and empty
-    const queryInput: HTMLInputElement = fixture.debugElement.query(By.css('#query')).nativeElement;
-    expect(queryInput.value).toBe('');
+    expect(tester.queryInput).toHaveValue('');
 
     // check that no pony is displayed
-    let ponyComponents = fixture.debugElement.queryAll(By.directive(PonyComponent));
-    expect(ponyComponents.length).toBe(0);
+    expect(tester.ponies.length).toBe(0);
 
     // fill the form and search
     const ponies = new Subject<ReadonlyArray<Pony>>();
     ponyService.search.and.returnValue(ponies);
 
-    const searchForm = fixture.debugElement.query(By.directive(PonySearchFormComponent)).componentInstance as PonySearchFormComponent;
-    searchForm.form.controls.query.setValue('b');
-    searchForm.search();
-
-    // wait until the navigation hs been done
-    await fixture.whenStable();
+    await tester.queryInput.fillWith('b');
+    await tester.searchButton.click();
 
     // check that a navigation happened
-    const router = TestBed.inject(Router);
-    expect(router.url).toBe('/ponies?query=b');
+    expect(tester.url).toBe('/ponies?query=b');
 
     // check that the service was called
     expect(ponyService.search).toHaveBeenCalledWith('b');
@@ -66,11 +82,10 @@ describe('PoniesComponent', () => {
     ponies.next([{ id: 'p1', name: 'Blue mystery', color: 'blue' }]);
 
     // wait until changes have been synced to the DOM
-    await fixture.whenStable();
+    await tester.stable();
 
     // check that the returned pony is displayed
-    ponyComponents = fixture.debugElement.queryAll(By.directive(PonyComponent));
-    expect(ponyComponents.length).toBe(1);
+    expect(tester.ponies.length).toBe(1);
   });
 
   it('should pre-fill the form and search immediately if the URL contains a query', async () => {
@@ -79,12 +94,10 @@ describe('PoniesComponent', () => {
     ponyService.search.and.returnValue(ponies);
 
     // navigate to the component
-    const harness = await RouterTestingHarness.create('/ponies?query=b');
-    const fixture = harness.fixture;
+    const tester = new PoniesComponentTester(await RouterTestingHarness.create('/ponies?query=b'));
 
     // check that the query input field is present and pre-filled
-    const queryInput: HTMLInputElement = fixture.debugElement.query(By.css('#query')).nativeElement;
-    expect(queryInput.value).toBe('b');
+    expect(tester.queryInput).toHaveValue('b');
 
     // check that the service was called
     expect(ponyService.search).toHaveBeenCalledWith('b');
@@ -93,11 +106,10 @@ describe('PoniesComponent', () => {
     ponies.next([{ id: 'p1', name: 'Blue mystery', color: 'blue' }]);
 
     // wait until changes have been synced to the DOM
-    await fixture.whenStable();
+    await tester.stable();
 
     // check that the pony is displayed
-    let ponyComponents = fixture.debugElement.queryAll(By.directive(PonyComponent));
-    expect(ponyComponents.length).toBe(1);
+    expect(tester.ponies.length).toBe(1);
   });
 
   it('should delete a pony', async () => {
@@ -106,8 +118,7 @@ describe('PoniesComponent', () => {
     ponyService.search.and.returnValue(ponies);
 
     // navigate to the component
-    const harness = await RouterTestingHarness.create('/ponies?query=b');
-    const fixture = harness.fixture;
+    const tester = new PoniesComponentTester(await RouterTestingHarness.create('/ponies?query='));
 
     // simulate the response from the server
     ponies.next([
@@ -116,18 +127,17 @@ describe('PoniesComponent', () => {
     ]);
 
     // wait until changes have been synced to the DOM
-    await fixture.whenStable();
+    await tester.stable();
 
     // check that the ponies are displayed
-    let ponyComponents = fixture.debugElement.queryAll(By.directive(PonyComponent));
-    expect(ponyComponents.length).toBe(2);
+    expect(tester.ponies.length).toBe(2);
 
     // delete the first pony, which should trigger a refresh
     ponyService.delete.and.returnValue(of(undefined));
     ponies = new Subject<ReadonlyArray<Pony>>();
     ponyService.search.and.returnValue(ponies);
 
-    (fixture.debugElement.query(By.css('.delete-button')).nativeElement as HTMLButtonElement).click();
+    await tester.ponies[0].deleteButton.click();
 
     expect(ponyService.delete).toHaveBeenCalledWith('p1');
 
@@ -137,10 +147,9 @@ describe('PoniesComponent', () => {
     ]);
 
     // wait until changes have been synced to the DOM
-    await fixture.whenStable();
+    await tester.stable();
 
     // check that the remaining pony is displayed
-    ponyComponents = fixture.debugElement.queryAll(By.directive(PonyComponent));
-    expect(ponyComponents.length).toBe(1);
+    expect(tester.ponies.length).toBe(1);
   });
 });
