@@ -8,6 +8,7 @@ import { Pony } from '../pony.model';
 import { PonyComponent } from '../pony/pony.component';
 import { By } from '@angular/platform-browser';
 import { PonySearchFormComponent } from '../pony-search-form/pony-search-form.component';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('PoniesComponent', () => {
   let ponyService: jasmine.SpyObj<PonyService>;
@@ -23,6 +24,7 @@ describe('PoniesComponent', () => {
 
     TestBed.configureTestingModule({
       providers: [
+        provideExperimentalZonelessChangeDetection(),
         { provide: ActivatedRoute, useValue: routeStub },
         { provide: PonyService, useValue: ponyService }
       ]
